@@ -9,6 +9,7 @@ import { cn } from '../lib/utils';
 const STEPS = ['已填單', '排單中', '草稿', '線稿', '色稿', '成圖', '已交付'];
 
 export default function AdminPortal() {
+  const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [orders, setOrders] = useState<any[]>([]);
   const [isAccepting, setIsAccepting] = useState(true);
@@ -16,10 +17,23 @@ export default function AdminPortal() {
   const [editData, setEditData] = useState<any>(null);
 
   useEffect(() => {
-    const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (doc) => {
-      if (doc.exists()) setIsAccepting(doc.data().isAcceptingCommissions);
+    const unsubAuth = onAuthStateChanged(auth, (u) => {
+      setUser(u);
       setLoading(false);
     });
+
+    const unsubSettings = onSnapshot(doc(db, 'settings', 'global'), (doc) => {
+      if (doc.exists()) setIsAccepting(doc.data().isAcceptingCommissions);
+    });
+
+    return () => {
+      unsubAuth();
+      unsubSettings();
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!user || user.email !== "ching.yany257257@gmail.com") return;
 
     const q = query(collection(db, 'orders'), orderBy('createdAt', 'desc'));
     const unsubOrders = onSnapshot(q, (snapshot) => {
@@ -28,11 +42,18 @@ export default function AdminPortal() {
       handleFirestoreError(error, OperationType.LIST, 'orders');
     });
 
-    return () => {
-      unsubSettings();
-      unsubOrders();
-    };
-  }, []);
+    return () => unsubOrders();
+  }, [user]);
+
+  const handleLogin = async () => {
+    try {
+      await signInWithPopup(auth, googleProvider);
+    } catch (error) {
+      console.error(error);
+    }
+  };
+
+  const handleLogout = () => signOut(auth);
 
   const toggleAccepting = async () => {
     try {
@@ -66,12 +87,47 @@ export default function AdminPortal() {
     );
   }
 
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <div className="bg-white p-12 rounded-3xl soft-shadow text-center space-y-6 max-w-md">
+          <div className="bg-ragdoll-cream p-4 rounded-2xl inline-block">
+            <PawPrint className="w-12 h-12 text-ragdoll-sea-blue" />
+          </div>
+          <h2 className="text-2xl font-bold">管理員登入</h2>
+          <p className="text-ragdoll-seal/60">請使用 Google 帳號登入以管理委託訂單。</p>
+          <button onClick={handleLogin} className="btn-primary w-full flex items-center justify-center gap-2">
+            <LogIn className="w-5 h-5" /> 使用 Google 登入
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // Strict Admin Email Check
+  if (user.email !== "ching.yany257257@gmail.com") {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-6">
+        <div className="bg-white p-12 rounded-3xl soft-shadow text-center space-y-6 max-w-md">
+          <div className="bg-red-50 p-4 rounded-2xl inline-block">
+            <X className="w-12 h-12 text-red-500" />
+          </div>
+          <h2 className="text-2xl font-bold text-red-600">權限不足</h2>
+          <p className="text-ragdoll-seal/60">您的帳號 ({user.email}) 沒有管理員權限。</p>
+          <button onClick={handleLogout} className="btn-secondary w-full flex items-center justify-center gap-2">
+            <LogOut className="w-4 h-4" /> 登出並切換帳號
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-8">
       <div className="flex flex-wrap justify-between items-center gap-4">
         <div>
           <h2 className="text-3xl font-bold">訂單管理後台</h2>
-          <p className="text-ragdoll-seal/60">開發模式：已暫時移除登入限制</p>
+          <p className="text-ragdoll-seal/60">歡迎回來，{user.displayName}</p>
         </div>
         <div className="flex items-center gap-4">
           <button 
@@ -83,6 +139,9 @@ export default function AdminPortal() {
           >
             <Power className="w-4 h-4" />
             {isAccepting ? '目前接單中' : '目前暫停接單'}
+          </button>
+          <button onClick={handleLogout} className="btn-secondary flex items-center gap-2">
+            <LogOut className="w-4 h-4" /> 登出
           </button>
         </div>
       </div>
