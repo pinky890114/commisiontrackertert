@@ -1,0 +1,41 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 管理員判定
+    function isAdmin() {
+      return isAuthenticated() && 
+        request.auth.token.email == "ching.yany257257@gmail.com" && 
+        request.auth.token.email_verified == true;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    match /orders/{allPaths=**} {
+      // 讀取：所有人可看（為了顯示參考圖）
+      allow read: if true;
+
+      // 寫入：所有人可上傳，但必須符合限制
+      allow create: if request.resource.size < 5 * 1024 * 1024 // 限制 5MB 以下
+                    && request.resource.contentType.matches('image/.*'); // 必須是圖片
+      
+      // 更新與刪除：僅限管理員
+      allow update, delete: if isAdmin();
+    }
+    
+    // 預設拒絕
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

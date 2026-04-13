@@ -1,0 +1,71 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: orders
+// Fields: nickname, contact, title, type, description, referenceImages, status, tempId, orderNumber, createdAt
+//
+// Collection: settings
+// Document ID: global
+// Fields: isAcceptingCommissions
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+    
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    // 管理員判定：檢查 Email 是否匹配且已驗證
+    function isAdmin() {
+      return isAuthenticated() && 
+        request.auth.token.email == "ching.yany257257@gmail.com" && 
+        request.auth.token.email_verified == true;
+    }
+
+    // 驗證訂單資料格式
+    function isValidOrder(data) {
+      return data.nickname is string && data.nickname.size() <= 50 &&
+             data.contact is string && data.contact.size() <= 100 &&
+             data.title is string && data.title.size() <= 100 &&
+             data.type in ['頭像', '半身', '全身'] &&
+             data.status in ['已填單', '排單中', '草稿', '線稿', '色稿', '成圖', '已交付'] &&
+             data.tempId is string && data.tempId.size() == 8;
+    }
+
+    // ===============================================================
+    // Rules
+    // ===============================================================
+
+    // 全域設定：所有人可讀，僅管理員可寫
+    match /settings/global {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 訂單資料
+    match /orders/{orderId} {
+      // 所有人可建立訂單（需符合格式，且初始狀態必須是「已填單」）
+      allow create: if isValidOrder(request.resource.data) && 
+                      request.resource.data.status == '已填單';
+      
+      // 所有人可讀取（為了讓委託人透過編號查詢進度）
+      allow read: if true; 
+      
+      // 僅管理員可更新狀態或刪除訂單
+      allow update, delete: if isAdmin();
+    }
+
+    // 預設拒絕所有其他存取
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

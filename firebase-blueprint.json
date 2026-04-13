@@ -1,0 +1,53 @@
+{
+  "entities": {
+    "Order": {
+      "title": "Commission Order",
+      "description": "An order for a drawing commission",
+      "type": "object",
+      "properties": {
+        "nickname": { "type": "string", "description": "User nickname" },
+        "contact": { "type": "string", "description": "Discord or Email" },
+        "title": { "type": "string", "description": "Commission title" },
+        "type": { 
+          "type": "string", 
+          "enum": ["頭像", "半身", "全身"],
+          "description": "Commission type"
+        },
+        "description": { "type": "string", "description": "Detailed description" },
+        "referenceImages": { 
+          "type": "array", 
+          "items": { "type": "string" },
+          "description": "URLs of reference images"
+        },
+        "status": {
+          "type": "string",
+          "enum": ["已填單", "排單中", "草稿", "線稿", "色稿", "成圖", "已交付"],
+          "description": "Current progress status"
+        },
+        "orderNumber": { "type": "string", "description": "Official order number assigned by admin" },
+        "tempId": { "type": "string", "description": "Random serial number generated on submission" },
+        "createdAt": { "type": "string", "format": "date-time", "description": "Submission time" }
+      },
+      "required": ["nickname", "contact", "title", "type", "status", "tempId", "createdAt"]
+    },
+    "GlobalSettings": {
+      "title": "Global Settings",
+      "description": "Global application settings",
+      "type": "object",
+      "properties": {
+        "isAcceptingCommissions": { "type": "boolean", "description": "Whether commissions are currently open" }
+      },
+      "required": ["isAcceptingCommissions"]
+    }
+  },
+  "firestore": {
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Collection of commission orders"
+    },
+    "/settings/global": {
+      "schema": "GlobalSettings",
+      "description": "Global settings document"
+    }
+  }
+}
